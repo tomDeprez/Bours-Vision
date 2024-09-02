@@ -1,0 +1,81 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Ma Liste de Suivi des Actions{% endblock %}
+
+{% block stylesheets %}
+<link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block body %}
+<div class="container mx-auto mt-10 p-5">
+    <h1 class="text-4xl font-extrabold mb-8 text-center text-gray-900">💎 Ma Liste de Suivi des Actions</h1>
+
+    <div class="grid grid-cols-1 gap-4">
+        {% for stock in stocks %}
+            <div class="bg-white shadow-lg rounded-lg p-6 transition-transform transform relative overflow-hidden" x-data="{ open: false, details: null }">
+                <div class="absolute inset-0" style="background: linear-gradient(to right, {% if stock.isPositive %}rgba(34,197,94,0.15){% else %}rgba(239,68,68,0.15){% endif %}, transparent);"></div>
+                <div class="relative flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-gray-800">{{ stock.name }}</h2>
+                        <p class="text-lg text-gray-700">{{ stock.price }} {{ stock.currency }}</p>
+                        <p class="text-base {% if stock.isPositive %}text-green-500{% else %}text-red-500{% endif %}">{{ stock.variation }}</p>
+                        <p class="text-xs text-gray-500">ISIN: {{ stock.isin }}</p>
+                    </div>
+                    <div class="flex-1 flex justify-center">
+                        <p class="mt-4 px-6 py-3 rounded-lg shadow-inner leading-6 text-center max-w-lg">{{ stock.description }}</p>
+                    </div>
+                    <div>
+                        <button @click="if(details === null && !open) fetchDetails('{{ stock.details_url }}', $el); open = !open;" class="px-6 py-3 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-semibold rounded-full shadow-lg transform hover:scale-105 transition-transform duration-200 ease-in-out">
+                            <span x-text="open ? 'Cacher les Détails' : 'Voir les Détails'"></span>
+                        </button>
+                    </div>
+                </div>
+                <div x-show="open" x-transition class="mt-4 p-4 bg-gray-50 rounded-lg relative z-10" x-html="details" style="display: none;">
+                    <!-- Les détails chargés via AJAX seront affichés ici -->
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+
+
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@2.8.0/dist/alpine.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.0/dist/chartjs-plugin-zoom.min.js"></script>
+
+<script>
+    function calculateSMA(data, windowSize) {
+        let sma = [];
+        for (let i = 0; i < data.length; i++) {
+            if (i < windowSize) {
+                sma.push(null);
+                continue;
+            }
+            let sum = 0;
+            for (let j = 0; j < windowSize; j++) {
+                sum += data[i - j];
+            }
+            sma.push(sum / windowSize);
+        }
+        return sma;
+    }
+function fetchDetails(url, el) {
+    fetch(url)
+        .then(response => response.text())
+        .then(data => {
+            const detailsElement = el.closest('[x-data]').querySelector('[x-html="details"]');
+            detailsElement.innerHTML = data;
+            
+            // Rechercher et exécuter les scripts inclus dans le HTML injecté
+            const scripts = detailsElement.querySelectorAll('script');
+            scripts.forEach(script => {
+                eval(script.innerText);  // Attention : utilisation d'eval pour exécuter le script
+            });
+        })
+        .catch(error => console.error('Erreur lors de la récupération des détails:', error));
+}
+
+</script>
+{% endblock %}

@@ -1,0 +1,197 @@
+<div class="container mx-auto mt-10 p-5">
+    <h1 class="text-4xl font-bold mb-5 text-center">{{ stockDetails.name }} ({{ stockDetails.symbol }})</h1>
+    
+    <div class="bg-white shadow-md rounded-lg p-6 mb-10">
+        <canvas style="height: 500; width: 100%;" id="stockChart{{ randomNumber }}"></canvas>
+    </div>
+    
+    <!-- Affichage des performances des 12 derniers mois -->
+    <div class="bg-white shadow-md rounded-lg p-6 mb-10">
+        <h2 class="text-2xl font-semibold mb-4 text-center">Gains des {{monthlyPerformance|length}} derniers mois</h2>
+        <div class="flex justify-center space-x-4">
+            {% for performance in monthlyPerformance %}
+                <div class="text-center">
+                    <p class="text-lg font-bold {% if performance.gain < 0 %}text-red-500{% else %}text-green-500{% endif %}">
+                        {{ performance.gain }}%
+                    </p>
+                    <p class="text-sm text-gray-500">{{ performance.month }}</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Ajout du bouton Reset Zoom -->
+    <div class="text-center mt-4">
+        <button id="resetZoomBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Reset Zoom
+        </button>
+    </div>
+</div>
+
+
+
+<script>
+function createStockChart(canvasId, prices, labels, volume, stockName) {
+    const ctx = document.getElementById(canvasId).getContext('2d');
+
+    if (ctx.chartInstance) {
+        ctx.chartInstance.destroy(); // Détruire l'ancien graphique si nécessaire
+    }
+
+    ctx.chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: stockName + ' Stock Price',
+                    data: prices,
+                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    tension: 0.1,
+                },
+                {
+                    label: '50-Day SMA',
+                    data: calculateSMA(prices, 50),
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    borderDash: [5, 5],
+                },
+                {
+                    label: '200-Day SMA',
+                    data: calculateSMA(prices, 200),
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    pointRadius: 0,
+                    borderDash: [5, 5],
+                },
+                {
+                    label: 'Volume',
+                    data: volume,
+                    type: 'bar',
+                    yAxisID: 'y-volume',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1,
+                    barPercentage: 0.2,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Date',
+                        color: '#666',
+                        font: {
+                            size: 14,
+                            weight: 'bold',
+                        }
+                    },
+                    grid: {
+                        display: false,
+                    }
+                },
+                y: {
+                    display: true,
+                    title: {
+                        display: true,
+                        text: 'Price',
+                        color: '#666',
+                        font: {
+                            size: 14,
+                            weight: 'bold',
+                        }
+                    },
+                    grid: {
+                        color: '#eee',
+                    }
+                },
+                'y-volume': {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                    title: {
+                        display: true,
+                        text: 'Volume',
+                        color: '#666',
+                        font: {
+                            size: 14,
+                            weight: 'bold',
+                        }
+                    }
+                }
+            },
+            plugins: {
+                zoom: {
+                    pan: {
+                        enabled: true,
+                        mode: 'xy', // Permet le pan dans les deux directions
+                        threshold: 10, // Distance minimale pour commencer à panner
+                    },
+                    zoom: {
+                        wheel: {
+                            enabled: true, // Active le zoom via la molette de la souris
+                            speed: 0.05, // Facteur de vitesse de zoom par la molette de souris
+                        },
+                        pinch: {
+                            enabled: true, // Active le zoom via pincement sur les écrans tactiles
+                        },
+                        drag: {
+                            enabled: true, // Active le zoom via un glisser-déposer
+                            backgroundColor: 'rgba(225,225,225,0.3)',
+                            borderColor: 'rgba(225,225,225)',
+                            borderWidth: 1,
+                            drawTime: 'beforeDatasetsDraw', // Moment où la boîte de zoom est dessinée
+                        },
+                        mode: 'xy', // Permet le zoom dans les deux directions
+                    },
+                    limits: {
+                        x: {min: 'original', max: 'original', minRange: 5}, // Limite de zoom sur l'axe x
+                        y: {min: 'original', max: 'original', minRange: 5}, // Limite de zoom sur l'axe y
+                    },
+                },
+            },
+            transitions: {
+                zoom: {
+                    animation: {
+                        duration: 500, // Durée de l'animation du zoom
+                        easing: 'easeOutCubic' // Fonction d'assouplissement pour l'animation
+                    }
+                }
+            },
+            legend: {
+                display: true,
+                position: 'top',
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        if (context.datasetIndex === 3) {
+                            return 'Volume: ' + context.raw;
+                        }
+                        return 'Price: ' + context.raw;
+                    }
+                }
+            }
+        }
+    });
+
+    // Ajouter un événement pour le bouton Reset Zoom
+    document.getElementById('resetZoomBtn').addEventListener('click', function() {
+        ctx.chartInstance.resetZoom();
+    });
+}
+
+
+createStockChart('stockChart{{randomNumber}}', {{ stockDetails.prices|json_encode|raw }}, {{ stockDetails.labels|json_encode|raw }}, {{ stockDetails.volume|json_encode|raw }}, 'Stock {{randomNumber}}');
+</script>

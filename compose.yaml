@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.dev
+  #   container_name: symfony_app
+  #   volumes:
+  #     - .:/var/www/html:cached
+  #   working_dir: /var/www/html
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     PHP_IDE_CONFIG: "serverName=docker"
+  #     APP_ENV: dev
+  #     APP_RUNTIME_MODE: dev
+  #     KERNEL_RUNTIME_MODE: dev
+  #     SYMFONY_IDE: "vscode"
+  #   command: >
+  #     sh -c "
+  #       chown -R www-data:www-data /var/www/html/var &&
+  #       chmod -R 775 /var/www/html/var &&
+  #       php -S 0.0.0.0:8000 -t public
+  #     "
+
+
+  database:
+    image: postgres:${POSTGRES_VERSION:-16}-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-boursVision}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dzad156geDZADsssferzgh5454z}
+      POSTGRES_USER: ${POSTGRES_USER:-boursVision}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-d", "${POSTGRES_DB:-boursVision}", "-U", "${POSTGRES_USER:-boursVision}"]
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - database_data:/var/lib/postgresql/data:rw
+    ports:
+      - "5432:5432"
+
+  mailer:
+    image: axllent/mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+volumes:
+  database_data:

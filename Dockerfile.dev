@@ -1,0 +1,23 @@
+# Utilise l'image PHP de base
+FROM php:8.2-fpm-alpine
+
+# Installe les dépendances nécessaires, y compris pgsql et pdo_pgsql
+RUN apk add --no-cache $PHPIZE_DEPS \
+    linux-headers \
+    postgresql-dev \
+    && docker-php-ext-install pdo pdo_pgsql \
+    && pecl install xdebug \
+    && docker-php-ext-enable xdebug \
+    && apk del $PHPIZE_DEPS linux-headers
+
+# Configuration Xdebug (pour debug local)
+RUN echo "xdebug.mode=debug" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.start_with_request=yes" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.client_host=host.docker.internal" >> /usr/local/etc/php/conf.d/xdebug.ini \
+    && echo "xdebug.client_port=9003" >> /usr/local/etc/php/conf.d/xdebug.ini
+
+# Définit le répertoire de travail
+WORKDIR /var/www/html
+
+# Commande par défaut
+CMD ["php-fpm"]
