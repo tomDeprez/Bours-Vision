@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Courbe des actions</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <canvas id="actionChart" width="400" height="200"></canvas>
+
+    <script>
+        // Initialisation du WebSocket
+        const socket = new WebSocket('wss://streaming.boursorama.com/quotes/premium');
+
+        // Variables pour stocker les données
+        let actualData = [];
+        let predictionData = [];
+
+        // Fonction pour calculer la prédiction (simple projection linéaire ici)
+        function calculatePrediction(data) {
+            if (data.length < 2) return [];
+
+            const lastPrice = data[data.length - 1];
+            const secondLastPrice = data[data.length - 2];
+            const priceChange = lastPrice - secondLastPrice;
+
+            // Prédiction des prochains points (basé sur le dernier changement de prix)
+            const prediction = [];
+            for (let i = 1; i <= 10; i++) {
+                prediction.push(lastPrice + priceChange * i);
+            }
+
+            return prediction;
+        }
+
+        // Configuration du graphique Chart.js
+        const ctx = document.getElementById('actionChart').getContext('2d');
+        const actionChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [], // Les labels du graphique (temps ou index)
+                datasets: [
+                    {
+                        label: 'Cours actuel',
+                        borderColor: 'blue',
+                        data: actualData,
+                        fill: false,
+                    },
+                    {
+                        label: 'Projection',
+                        borderColor: 'darkblue',
+                        data: predictionData,
+                        fill: false,
+                    },
+                ],
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'linear',
+                        position: 'bottom'
+                    }
+                }
+            }
+        });
+
+        // Événement pour la connexion WebSocket ouverte
+        socket.onopen = function() {
+            // Envoi du premier message d'authentification
+            // socket.send(JSON.stringify({
+            //     channel: "feed.streaming.join",
+            //     user: {
+            //         login: "28082882",
+            //         password: "54772"
+            //     },
+            //     data: {
+            //         connection: {
+            //             login: "28082882",
+            //             password: "54772"
+            //         },
+            //         feed: "#livePAR-1rTCW8"
+            //     }
+            // }));
+            socket.send(JSON.stringify({
+                channel: "feed.streaming.join",
+                user: {
+                    login: "28082882",
+                    password: "54772"
+                },
+                data: {
+                    connection: {
+                        login: "28082882",
+                        password: "54772"
+                    },
+                    feed: "#bookPAR-1rTCW8"
+                }
+            }));
+
+            // Envoi du second message avec le JWT
+            // socket.send(JSON.stringify({
+            //     channel: "notification.amq.join",
+            //     data: {
+            //         jwt: "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsImtpZCI6InJlZ2lzdHJ5LTAwMSIsImp0aSI6IjZmMzkxMmY1ZWNhM2MwNzMifQ.eyJpc3MiOiJhdXRoLmJvdXJzb3JhbWEuY29tIiwianRpIjoiNmYzOTEyZjVlY2EzYzA3MyIsImlhdCI6MTcyNTM2MzQ0Ny4xNTY5MzUsInYiOiIxLjAiLCJzdWIiOiJ3ZWJfZnJfZnJvbnRfMjAiLCJzY29wZXMiOiJST0xFX0NVU1RPTUVSIiwiY2lkIjoid2ViX2ZyX2Zyb250XzE5Iiwic2Vzc2lvbiI6eyJ1c2VySWQiOiI5NTAwNDQxMiIsIm1lbWJlcklkIjoiTTgxMjAxNTIiLCJsZXZlbCI6IkNVU1RPTUVSIiwiYnJzU2Vzc2lvbklkIjoiZjRjYTY3NDU0Zjg1NDJiOWEwMTMyNDMwM2ZjZDgxZmEiLCJpZCI6InJjM2tjbTFyaWZldjRuNm1pYWdqcDNpN3E5Iiwic2VydmVyIjoiYnJzLXNlc3Npb24wMi1wMDEuZGMwMiJ9LCJ1c2VySGFzaCI6ImI0NWY3OTQwMThmNWRiNiIsInVzZXIiOnsibG9jYWxlIjoiZnItRlIiLCJjb3VudHJ5IjoiRlJBIn0sImV4cCI6MTcyNTQ0OTg0N30.W7Na2THsXPV32cQv0xAMhNoLhyq2QbG6iloGuCJ2kydTq4nR7bla5MlPMAyKq3ME3BdWANgfYj9_9MDoBdcUfch7lcVE6tWlSronZTPKLVBudfYOX68sLjE60rIZLMQMZLpkb9AYH2_tY2DPTQYrqkYkNGPD_gBgKCxDGjbqbXnPc2Vu5slIx95sbH0haZaJss2hTJmOL_-06m5klONL9pR-0Zfamw0OgBow3eFDtvGfl6mnFsOKJVuMzHe7n6D1Q5PDgKPo92aawv9uhR_PZ7pIwIQCs2ifNbgjhQIWHUeJ89WWvRakcSjpZl8_-7UA-7kGw82mAK2s75htRB0zKA1UXpVTqusb91D4NdG_pKODQPsQAi_OKoRNs1XnHYCdxnYJ63I7pL-6a33FrD5tGEriJfn8VkjhdaxR0xLIaN9DmPE4QL-zpike8YTZVRkUvQQhzhqtDepK10vkumCtbIvWJ2orYW6R3Dph4jY-7K8AYt-khk0LVl9ZX7RyKkPACLmU7bAD9YIYkgrP3V2BtSNLVVmDUlvmeLi6hy020qz5ESZqUpxoOTLnnjzKUPfkXHBbbC2fkZo3W4-rC32liXgY6_k85-S6hJQnoevGgzyYVlUzDRTHoy8_t4162-A8dngt8XTOR6yWbbw6bRWzwi_lnjru3nI74t5XawMaROQ"
+            //     },
+            //     origin: "portal"
+            // }));
+        };
+
+        // Écoute des messages WebSocket
+        socket.onmessage = function(event) {
+            const message = JSON.parse(event.data);
+
+            if (message.channel === "feed.streaming.message" && message.data && message.data.data) {
+                const price = message.data.data.askQuantity; // Utilise les données pertinentes
+
+                // Ajout des nouvelles données
+                actualData.push(price);
+                predictionData = calculatePrediction(actualData);
+
+                // Mise à jour des labels et des données du graphique
+                actionChart.data.labels.push(actualData.length);
+                actionChart.data.datasets[0].data = actualData;
+                actionChart.data.datasets[1].data = [...Array(actualData.length).fill(null), ...predictionData];
+                actionChart.update();
+            }
+        };
+
+        // Gérer la fermeture du WebSocket
+        socket.onclose = function(event) {
+            console.log('WebSocket closed: ', event);
+        };
+
+        // Gérer les erreurs du WebSocket
+        socket.onerror = function(error) {
+            console.log('WebSocket error: ', error);
+        };
+    </script>
+</body>
+</html>

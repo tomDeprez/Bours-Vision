@@ -2,6 +2,11 @@
     <h1 class="text-4xl font-bold mb-5 text-center">{{ stockDetails.name }} ({{ stockDetails.symbol }})</h1>
     
     <div class="bg-white shadow-md rounded-lg p-6 mb-10">
+        <div class="text-center mt-4">
+        <button id="resetZoomBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Reset Zoom
+        </button>
+    </div>
         <canvas style="height: 500; width: 100%;" id="stockChart{{ randomNumber }}"></canvas>
     </div>
     
@@ -21,11 +26,7 @@
     </div>
     
     <!-- Ajout du bouton Reset Zoom -->
-    <div class="text-center mt-4">
-        <button id="resetZoomBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-            Reset Zoom
-        </button>
-    </div>
+
 </div>
 
 

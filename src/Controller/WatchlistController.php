@@ -696,6 +696,13 @@ class WatchlistController extends AbstractController
         ]);
     }
 
+    #[Route('/prediction', name: 'app_watchlist_prediction')]
+    public function prediction(): Response
+    {
+        return $this->render('watchlist/prediction.html.twig', [
+        ]);
+    }
+
     function translateMonthToFrench(string $month): string
     {
         $months = [
